@@ -1,0 +1,139 @@
+services:
+  postgres-source:
+    image: postgres:17.5-bullseye
+    container_name: postgres-source
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: post
+      POSTGRES_DB: xyz_db
+    command:
+      - "postgres"
+      - "-c"
+      - "wal_level=logical"
+    ports:
+      - "5168:5432"
+    volumes:
+      - ./init_scripts/init.sql:/docker-entrypoint-initdb.d/postgres_init.sql
+      - itp-postgres-vol:/var/lib/postgresql/data
+    networks:
+      - itp-debezium-net
+
+  broker:
+    image: confluentinc/cp-kafka:latest
+    container_name: broker
+    ports:
+      - "9092:9092"
+      - "9093:9093"
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://broker:9092
+
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@broker:9093
+
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_BROKER_LISTENER_NAME: PLAINTEXT
+
+      CLUSTER_ID: 3FpJ2yElQ5--5AbkUE6GlQ
+
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+
+      KAFKA_LOG_DIRS: /var/lib/kafka/data
+    volumes:
+      - kafka-data:/var/lib/kafka/data
+    networks:
+      - itp-debezium-net
+  kafka-ui-debezium:
+    image: ghcr.io/kafbat/kafka-ui:latest
+    container_name: kafka-ui-debezium
+    ports:
+      - "8080:8080"
+    environment:
+      KAFKA_CLUSTERS_0_NAME: local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: broker:9092
+      DYNAMIC_CONFIG_ENABLED: "true"
+    depends_on:
+      - broker
+    networks:
+      - itp-debezium-net
+    restart: unless-stopped
+
+  connect:
+    build: .
+    container_name: connect
+    ports:
+      - "8083:8083"
+    depends_on:
+      - broker
+    environment:
+      BOOTSTRAP_SERVERS: "broker:9092"
+      GROUP_ID: 1
+      CONFIG_STORAGE_TOPIC: my_connect_configs
+      OFFSET_STORAGE_TOPIC: my_connect_offsets
+      STATUS_STORAGE_TOPIC: my_connect_statuses
+      KEY_CONVERTER_SCHEMAS_ENABLE: "false"
+      VALUE_CONVERTER_SCHEMAS_ENABLE: "false"
+      KEY_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+      VALUE_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+      INTERNAL_KEY_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+      INTERNAL_VALUE_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+      PLUGIN_PATH: /kafka/connect
+    volumes:
+      - customize_plugins:/kafka/connect
+    networks:
+      - itp-debezium-net
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.10.2
+    container_name: elasticsearch
+    ports:
+      - 9200:9200
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - xpack.security.http.ssl.enabled=false
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+    volumes:
+      - es-data:/usr/share/elasticsearch/data
+    networks:
+      - itp-debezium-net
+  mongodb-latest:
+    image: "mongodb/mongodb-community-server:latest"
+    container_name: "mongodb-latest"
+    ports:
+      - "27168:27017"
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=istad
+      - MONGO_INITDB_ROOT_PASSWORD=qwerqwer
+    volumes:
+      - mongodb_latest_data_vol:/data/db/
+      - mongodb_latest_log_vol:/var/log/mongodb/
+    networks:
+      - itp-debezium-net
+  kibana:
+    image: docker.elastic.co/kibana/kibana:9.1.8
+    container_name: kibana
+    ports:
+      - 5601:5601
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+      - XPACK_SECURITY_ENABLED=false
+    depends_on:
+      - elasticsearch
+    networks:
+      - itp-debezium-net
+
+volumes:
+  itp-postgres-vol:
+  kafka-data:
+  customize_plugins:
+  es-data:
+  mongodb_latest_data_vol:
+  mongodb_latest_log_vol:
+networks:
+  itp-debezium-net:
+    external: true
