@@ -13,7 +13,7 @@ services:
     ports:
       - "5168:5432"
     volumes:
-      - ./init_scripts/init.sql:/docker-entrypoint-initdb.d/postgres_init.sql
+      - ./psql/init.sql:/docker-entrypoint-initdb.d/postgres_init.sql
       - itp-postgres-vol:/var/lib/postgresql/data
     networks:
       - itp-debezium-net
@@ -85,6 +85,7 @@ services:
       PLUGIN_PATH: /kafka/connect
     volumes:
       - customize_plugins:/kafka/connect
+      - connect_data:/kafka/data
     networks:
       - itp-debezium-net
   elasticsearch:
@@ -99,19 +100,6 @@ services:
       - ES_JAVA_OPTS=-Xms512m -Xmx512m
     volumes:
       - es-data:/usr/share/elasticsearch/data
-    networks:
-      - itp-debezium-net
-  mongodb-latest:
-    image: "mongodb/mongodb-community-server:latest"
-    container_name: "mongodb-latest"
-    ports:
-      - "27168:27017"
-    environment:
-      - MONGO_INITDB_ROOT_USERNAME=istad
-      - MONGO_INITDB_ROOT_PASSWORD=qwerqwer
-    volumes:
-      - mongodb_latest_data_vol:/data/db/
-      - mongodb_latest_log_vol:/var/log/mongodb/
     networks:
       - itp-debezium-net
   kibana:
@@ -132,8 +120,7 @@ volumes:
   kafka-data:
   customize_plugins:
   es-data:
-  mongodb_latest_data_vol:
-  mongodb_latest_log_vol:
+  connect_data:
 networks:
   itp-debezium-net:
     external: true
