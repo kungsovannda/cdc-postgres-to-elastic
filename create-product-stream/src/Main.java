@@ -4,8 +4,7 @@ import repository.ProductRepository;
 
 import java.util.Scanner;
 
-public class Main
-{
+public class Main {
     public static void main(String[] args) throws InterruptedException {
 
         ProductRepository.createProductDb();
@@ -28,7 +27,7 @@ public class Main
             System.out.println( "[*] " + (i+1) + ". PRODUCT INSERTED SUCCESSFULLY : " + product.getName());
 
             Thread.sleep(
-                    3000
+                    300
             );
         }
 

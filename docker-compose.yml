@@ -5,7 +5,7 @@ services:
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: post
-      POSTGRES_DB: xyz_db
+      POSTGRES_DB: postgres
     command:
       - "postgres"
       - "-c"
@@ -100,18 +100,6 @@ services:
       - ES_JAVA_OPTS=-Xms512m -Xmx512m
     volumes:
       - es-data:/usr/share/elasticsearch/data
-    networks:
-      - itp-debezium-net
-  kibana:
-    image: docker.elastic.co/kibana/kibana:9.1.8
-    container_name: kibana
-    ports:
-      - 5601:5601
-    environment:
-      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
-      - XPACK_SECURITY_ENABLED=false
-    depends_on:
-      - elasticsearch
     networks:
       - itp-debezium-net
 
